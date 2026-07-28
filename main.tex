@@ -1,0 +1,691 @@
+% SIAM SIURO Article Template — Group 05 Final Report
+\documentclass[final,onefignum,onetabnum]{siuro250211}
+
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage{epstopdf}
+\usepackage{algorithmic}
+\ifpdf
+  \DeclareGraphicsExtensions{.eps,.pdf,.png,.jpg}
+\else
+  \DeclareGraphicsExtensions{.eps}
+\fi
+
+\usepackage{enumitem}
+\setlist[enumerate]{leftmargin=.5in}
+\setlist[itemize]{leftmargin=.5in}
+
+\usepackage{tabularx}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\newcommand{\creflastconjunction}{, and~}
+
+\newsiamremark{remark}{Remark}
+\newsiamremark{hypothesis}{Hypothesis}
+\crefname{hypothesis}{Hypothesis}{Hypotheses}
+\newsiamthm{claim}{Claim}
+\newsiamremark{fact}{Fact}
+\crefname{fact}{Fact}{Facts}
+
+\setcounter{footnote}{1}
+
+\headers{Bullwhip Effect in Sri Lanka's Rice Supply Chain}{Group 05}
+
+\title{An Agent-Based Model of the Bullwhip Effect in Sri Lanka's
+North Central Province Rice Supply Chain During the 2022 Economic Crisis}
+
+\author{H.W.S.N. Hathurusinghe
+\and U.A.D.L.T. Subasinghe
+\and D.A.A.K. Dewasingha
+\and U.K.D.I. Dilshan
+\and T.P.N. Fernando}
+
+\dedication{\small\textit{Project advisor: Dr. S. C. Surasinghe}}
+
+\usepackage{amsopn}
+\DeclareMathOperator{\diag}{diag}
+
+\ifpdf
+\hypersetup{
+  pdftitle={An Agent-Based Model of the Bullwhip Effect in Sri Lanka's Rice Supply Chain},
+  pdfauthor={Group 05}
+}
+\fi
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+\label{sec:intro}
+
+The Bullwhip Effect describes the progressive amplification of order variance as information
+travels upstream through a supply chain: small, easily absorbed fluctuations in end-consumer
+demand translate into increasingly large and costly order swings at the retailer, wholesaler, and
+producer tiers \cite{LeePadmanabhanWhang1997}. The effect is well documented in stable-demand
+industrial settings, but its behaviour under acute, compounding crisis conditions---where supply
+capacity, transport, and demand are simultaneously disrupted---is comparatively underexplored.
+
+Sri Lanka's 2022 economic crisis provides a real-world natural experiment in exactly this
+setting. Within a period of months, the country experienced (i) a nationwide fertilizer import
+ban that sharply reduced paddy yields, (ii) a severe fuel shortage that constrained transport and
+logistics capacity across the supply chain, and (iii) a period of consumer panic buying driven by
+food-security anxiety. This paper models the resulting demand and supply disruption in the rice
+supply chain of Sri Lanka's North Central Province, the country's principal rice-producing
+region, using an agent-based simulation calibrated to the timing and magnitude of these three
+shocks.
+
+The model's core ordering logic is based on the Order-Up-To policy and return-allowance
+framework of Chatfield and Pritchard \cite{ChatfieldPritchard2013}, extended with an adaptive
+Government agent that is not present in the original formulation. Three research questions
+motivate the experimental design (\cref{sec:experiments}):
+
+\begin{enumerate}
+\item How do the fertilizer ban, fuel shortage, and consumer panic signal interact to amplify
+demand variance across the supply chain?
+\item Which government interventions most effectively reduce bullwhip amplification during a
+crisis?
+\item How sensitive is the magnitude and duration of the amplification cascade to model
+parameter uncertainty and to the timing of policy activation?
+\end{enumerate}
+
+The remainder of this paper is organized as follows. \Cref{sec:related} situates the model
+relative to prior bullwhip effect literature. \Cref{sec:model} describes the agent-based model
+implementation. \Cref{sec:experiments} details the experimental design and data collection
+protocol. \Cref{sec:analysis} describes the data analysis methodology. \Cref{sec:results} presents
+the simulation results, and \cref{sec:discussion} discusses the findings, limitations, and
+concludes.
+
+\section{Related Work}
+\label{sec:related}
+
+The Bullwhip Effect was formalized by Lee, Padmanabhan, and Whang \cite{LeePadmanabhanWhang1997},
+who identified demand-signal processing, order batching, price fluctuation, and rationing/shortage
+gaming as its four principal operational causes. Chatfield and Pritchard
+\cite{ChatfieldPritchard2013} extend this literature by incorporating product returns into a
+multi-echelon simulation, showing that permitting a nonzero return allowance increases
+order-variance amplification relative to a no-returns baseline, with the effect strongest at the
+most upstream echelon; the return allowance parameter $\rho$ and the Order-Up-To replenishment
+policy used in the present model are adopted directly from that work.
+
+Dominguez, Cannella, and Framinan \cite{DominguezCannellaFraminan2015} study how supply chain
+network structure---the number of echelons, number of nodes, and distribution of links---affects
+bullwhip severity under both stationary and highly volatile demand regimes, using a multi-agent
+simulation and a formal design-of-experiments approach; their finding that structural factors
+beyond echelon count matter under demand shocks motivates this paper's attention to a fixed,
+realistically tiered four-echelon structure rather than a stylized linear chain.
+
+Moyaux, Chaib-draa, and D'Amours \cite{MoyauxChaibdraaDamours2007} examine information sharing as
+a coordination mechanism for bullwhip reduction, separating raw consumer demand from
+downstream ordering adjustments and showing that sharing true demand information upstream can
+substantially dampen amplification; this motivates the present model's Government agent, which
+can be interpreted as a coarse, centrally observed proxy for the food-security signal that
+individual supply chain tiers do not otherwise observe.
+
+Qu and Raff \cite{QuRaff2017} compare centralized and decentralized inventory control regimes and
+show that centralization does not uniformly reduce the bullwhip effect; this result is directly
+relevant to interpreting the present paper's finding that government intervention effectiveness
+depends critically on activation timing rather than on the mere presence of centralized policy
+control.
+
+\section{Model Implementation}
+\label{sec:model}
+
+The model is implemented as a discrete-time agent-based simulation in NetLogo 6.4/7.0, with a time
+step of one week and a horizon of 156 steps (three calendar years, 2021--2023). Development
+followed an incremental approach: a minimal two-tier prototype (Consumer, Farmer) with a fixed
+ordering rule was validated first, after which the Retailer and Wholesaler tiers, the return
+allowance mechanism, the three crisis shocks, and the adaptive Government agent were added in
+sequence, with the model's behaviour checked against the expected qualitative pattern at each
+stage. The model file includes inline comments documenting each procedure and an Info tab with
+the full parameter list, units, and calibration sources.
+
+\subsection{Agents}
+
+Five agent types are implemented:
+
+\begin{itemize}
+\item \textbf{Consumer}: generates weekly demand, subject to a panic-buying multiplier during the
+historically calibrated panic window.
+\item \textbf{Retailer}, \textbf{Wholesaler}: intermediate tiers, each applying an Order-Up-To
+replenishment policy against a lead time pipeline of orders placed upstream.
+\item \textbf{Farmer}: the production tier, subject to capacity shocks from the fertilizer ban and
+fuel shortage, and the source of the food security index observed by the Government agent.
+\item \textbf{Government}: an adaptive policy agent that monitors the food security index and, once
+it falls below a threshold $\Phi^{*}$, activates an order-amplification cap on downstream
+ordering behaviour.
+\end{itemize}
+
+\subsection{Ordering Policy}
+
+Each tier orders according to an Order-Up-To policy, following Chatfield and Pritchard
+\cite{ChatfieldPritchard2013}. Let $D_t$ denote observed demand at time $t$, $\hat{D}_t$ the
+exponentially smoothed demand forecast with smoothing parameter $\alpha$, and $L$ the tier's lead
+time (in weeks). The order-up-to level $S_t$ and base order quantity $O_t^{\text{base}}$ are
+computed as
+
+\begin{subequations}
+\begin{align}
+\hat{D}_t &= \alpha D_t + (1-\alpha)\hat{D}_{t-1}, \label{eq:forecast}\\
+S_t &= \hat{D}_t \cdot (L + 1) + z\,\sigma_{D}\sqrt{L}, \label{eq:orderupto}\\
+O_t^{\text{base}} &= \max\big(0,\; S_t - I_t - \textstyle\sum_{k} P_{t,k}\big), \label{eq:orderqty}
+\end{align}
+\end{subequations}
+
+where $I_t$ is on-hand inventory, $P_{t,k}$ is the pipeline of outstanding orders at lag $k$, and
+$z\sigma_D\sqrt{L}$ is a safety-stock term. Lead times are tiered across the chain (2, 3, and 4
+weeks for the retailer, wholesaler, and farmer tiers respectively), consistent with increasing
+logistics complexity moving upstream.
+
+\subsection{Returns}
+
+Following \cite{ChatfieldPritchard2013}, a return allowance $\rho$ introduces an unpredictable
+additional source of order-quantity volatility, rather than a predictable adjustment to on-hand
+inventory. The final order quantity is
+\begin{equation}
+O_t = \max\big(0,\; O_t^{\text{base}} + \rho \cdot O_t^{\text{base}} \cdot \varepsilon_t\big),
+\qquad \varepsilon_t \sim \mathcal{N}(0,1),
+\label{eq:returns}
+\end{equation}
+so that at $\rho=0$ the model reduces exactly to the no-returns case, and increasing $\rho$ scales
+the magnitude of an unpredictable shock applied directly to the order signal, consistent with
+returns functioning as an additional, disruptive information-distortion mechanism rather than a
+smoothing buffer.
+
+\subsection{Crisis Shocks}
+
+Three shocks are applied at historically calibrated times (\cref{tab:shocks}), based on Central
+Bank of Sri Lanka reporting \cite{CBSL2022}, Department of Census and Statistics paddy yield data
+\cite{DCS2022Maha}, and World Food Programme price monitoring \cite{WFP2022}.
+
+\begin{table}[htbp]
+\footnotesize
+\caption{Crisis shock parameters and calibration sources.}
+\label{tab:shocks}
+\begin{center}
+\begin{tabularx}{\textwidth}{|l|c|c|Y|}
+\hline
+\textbf{Shock} & \textbf{Timing (week)} & \textbf{Multiplier} & \textbf{Source} \\
+\hline
+Fertilizer import ban & 17 & 0.627 & DCS Maha yield decline (4{,}492$\to$2{,}819 kg/ha, $\approx$37\%) \\
+\hline
+Fuel shortage & 65 & 0.75 & Estimated logistics capacity reduction \\
+\hline
+Consumer panic buying & 74--90 & 1.02/week & Calibrated to WFP price-spike timing \\
+\hline
+\end{tabularx}
+\end{center}
+\end{table}
+
+The fertilizer-shock multiplier reflects a scientifically grounded, data-derived value; the fuel
+shortage and panic-buying multipliers are acknowledged estimates in the absence of comparably
+precise administrative data, and are treated as such in the limitations discussion
+(\cref{sec:discussion}).
+
+\subsection{Government Intervention}
+
+The food security index $\Phi_t$ is computed as a weighted combination of farmer production
+capacity and farmer inventory,
+\begin{equation}
+\Phi_t = 0.5 \left(\frac{C_t}{100}\right) + 0.5\left(\frac{I^{F}_t}{200}\right),
+\label{eq:fsi}
+\end{equation}
+where $C_t$ is farmer production capacity (as a percentage of nominal) and $I^{F}_t$ is farmer
+inventory. The Government agent activates an order-amplification cap once $\Phi_t$ falls below a
+threshold $\Phi^{*}$ (default 0.40, following WFP food-security reporting convention
+\cite{WFP2022}).
+
+\subsection{Outcome Metric}
+
+The primary outcome metric is the Bullwhip Ratio at a given tier, defined as the ratio of that
+tier's order-quantity variance to consumer demand variance over the run,
+\begin{equation}
+\mathrm{BR}_{\text{tier}} = \frac{\operatorname{Var}(O^{\text{tier}})}{\operatorname{Var}(D)}.
+\label{eq:bwr}
+\end{equation}
+The farmer-tier Bullwhip Ratio, being furthest upstream, is the primary metric reported in this
+paper, consistent with the theoretical expectation that amplification is largest at the tier
+farthest from the consumer \cite{LeePadmanabhanWhang1997}.
+
+\section{Experimental Design and Data Collection}
+\label{sec:experiments}
+
+Four BehaviorSpace experiments were implemented directly in the NetLogo model file, in addition
+to one supplementary threshold-sensitivity experiment. All experiments use the 156-step time
+horizon and record output in NetLogo's table export format, giving one row per (run, time step)
+pair. \Cref{tab:experiments} summarizes the design.
+
+\begin{table}[htbp]
+\footnotesize
+\caption{Experimental design summary.}
+\label{tab:experiments}
+\begin{center}
+\begin{tabularx}{\textwidth}{|l|Y|c|c|l|}
+\hline
+\textbf{Exp.} & \textbf{Design} & \textbf{Scen.} & \textbf{Runs} & \textbf{RQ} \\
+\hline
+E0 & Baseline validation, all shocks off, government off & 1 & 10 & Val. \\
+\hline
+E1 & Shock decomposition, $2\times2\times2$ factorial (fertilizer $\times$ fuel $\times$ panic) & 8 & 400 & RQ1 \\
+\hline
+E2 & Intervention $\times$ returns $\times$ panic severity, $2\times3\times3$ factorial & 18 & 900 & RQ2, RQ3 \\
+\hline
+E3 & One-factor-at-a-time sensitivity ($\alpha$, $\rho$, panic-rate, $\Phi^{*}$, $\pm20\%$) & 12 & 360 & RQ3 \\
+\hline
+FSI check & $2\times3$ factorial (government $\times$ $\Phi^{*}\in\{0.2,0.4,0.6\}$) & 6 & 300 & RQ2, RQ3 \\
+\hline
+\multicolumn{3}{|r|}{\textbf{Total}} & \textbf{1{,}970} & \\
+\hline
+\end{tabularx}
+\end{center}
+\end{table}
+
+E0 confirms that, absent any crisis shock, the model converges to a stable, low-variance
+order-up-to equilibrium (mean farmer-tier Bullwhip Ratio 51.5, $\sigma=6.5$, $n=10$), establishing
+a validity baseline against which E1--E3 are interpreted. E1 isolates the individual and joint
+contribution of each of the three shocks to demand-variance amplification (RQ1). E2 is the primary
+experiment for comparing farmer-tier Bullwhip Ratios with and without government intervention, for
+testing whether permitting returns amplifies variance as reported by
+\cite{ChatfieldPritchard2013}, and for assessing intervention robustness under more severe demand
+shocks (RQ2, RQ3). E3 evaluates robustness to parameter uncertainty by varying each of four
+parameters independently by $\pm20\%$ around its calibrated default (RQ3). The supplementary
+FSI-threshold experiment tests whether the activation threshold $\Phi^{*}$ itself, rather than
+merely the presence of the government switch, determines intervention effectiveness.
+
+Fifty replications per scenario were used for E1 and E2, consistent with the replication protocol
+adopted from \cite{ChatfieldPritchard2013}; thirty replications were used for the E3 sensitivity
+sweeps; fifty replications per scenario were used for the FSI-threshold check.
+
+\section{Data Analysis and Visualization}
+\label{sec:analysis}
+
+Simulation output was exported from NetLogo's BehaviorSpace in table format (one row per run/time
+step pair) and analyzed in Python using \texttt{pandas} for data cleaning and aggregation,
+\texttt{scipy.stats} for significance testing, and \texttt{matplotlib} for visualization. Data
+cleaning consisted of removing BehaviorSpace's metadata header rows, standardizing column names,
+and casting parameter and metric columns to their correct types.
+
+Group differences were tested using Welch's $t$-test (unequal variances), selected because
+government-on runs exhibit substantially lower variance than government-off runs at effective
+activation thresholds, violating the equal-variance assumption of a standard Student's $t$-test.
+Four visualization types were produced: time-series plots of the farmer-tier Bullwhip Ratio
+faceted by threshold, a boxplot of final-step ratio distributions by scenario, a heatmap of mean
+ratios across the full government$\times$threshold grid, and a bar chart of the E1 shock-
+decomposition means with standard-error bars.
+
+\section{Results}
+\label{sec:results}
+
+Results below draw on four BehaviorSpace experiments. E0 (10 runs) validates baseline model
+stability absent any shock. E1 (400 runs) decomposes the individual and joint contribution of the
+three crisis shocks with government intervention off. The primary intervention experiment (E2,
+900 runs) compares government-on and government-off replications across a $3\times3$ grid of
+return allowance $\rho\in\{0,0.1,0.2\}$ and panic-rate severity, at the calibrated default
+activation threshold ($\Phi^{*}=0.40$). A supplementary threshold-sensitivity experiment (300
+runs) extends the government comparison across three activation thresholds
+($\Phi^{*}\in\{0.2,0.4,0.6\}$). All experiments report the farmer-tier Bullwhip Ratio
+(\cref{eq:bwr}) at the final simulation step unless otherwise noted.
+
+\subsection{Shock Decomposition (E1)}
+
+Holding government intervention off, no individual shock produced a statistically significant
+main effect on the final-step farmer-tier Bullwhip Ratio when averaged across the other two
+factors: fertilizer ban ($p=0.88$), fuel shortage ($p=0.057$), consumer panic ($p=0.67$)
+(\cref{fig:e1}). Direct inspection of per-tick consumer demand confirmed that the panic-rate
+multiplier (a 2\% mean shift) is applied correctly by the model, but its magnitude is small
+relative to the model's intrinsic demand volatility ($\sigma=10$ on a mean of 50), rendering its
+contribution to the cumulative variance ratio statistically undetectable at this calibration. The
+fuel shortage, a 25\% capacity reduction, comes closest to significance, consistent with its
+larger direct effect on farmer production capacity.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{e1_shock_decomposition}
+  \caption{Mean farmer-tier Bullwhip Ratio across all eight shock combinations in E1 (government
+  off), with standard-error bars. No individual shock shows a statistically significant main
+  effect (all $p>0.05$).}
+  \label{fig:e1}
+\end{figure}
+
+\subsection{Return Allowance Effect (E2)}
+
+With government intervention off, increasing the return allowance $\rho$ increases the mean
+farmer-tier Bullwhip Ratio (\cref{fig:rho}): 72.8 ($\rho=0$), 74.0 ($\rho=0.1$, not significant
+relative to $\rho=0$, $p=0.47$), and 86.5 ($\rho=0.2$, $p<0.0001$ relative to $\rho=0$). This
+confirms, in direction, the central finding of Chatfield and Pritchard \cite{ChatfieldPritchard2013}
+that permitting returns increases bullwhip amplification, though the effect in this model is only
+clearly detectable at the higher return allowance level tested.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.7\textwidth]{rho_effect}
+  \caption{Mean farmer-tier Bullwhip Ratio as a function of return allowance $\rho$ (government
+  off). Error bars show standard error of the mean ($n=150$ per level).}
+  \label{fig:rho}
+\end{figure}
+
+\subsection{Primary Intervention Effect (E2)}
+
+At the calibrated default settings ($\rho=0.1$, panic-rate$=1.02$), government intervention
+reduces the mean farmer-tier Bullwhip Ratio by 61.3\%, from 74.53 (government off, $n=50$) to
+28.85 (government on, $n=50$; Welch's $t$-test, $p=9.9\times10^{-29}$). This effect is consistent
+across all nine combinations of $\rho$ and panic-rate severity tested in the full E2 factorial
+design.
+
+\subsection{Threshold Sensitivity}
+
+The supplementary FSI-threshold experiment corroborates the primary intervention effect and shows
+it is threshold-dependent (\cref{tab:threshold}, \cref{fig:threshold,fig:heatmap,fig:boxplot}).
+
+\begin{table}[htbp]
+\footnotesize
+\caption{Farmer-tier Bullwhip Ratio by FSI activation threshold, government on vs.\ off (50 runs
+per cell). $p$-values from Welch's $t$-test (unequal variances).}
+\label{tab:threshold}
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\textbf{$\Phi^{*}$} & \textbf{Off (mean)} & \textbf{On (mean)} & \textbf{Reduction} & \textbf{$p$-value} & \textbf{Significant?} \\
+\hline
+0.2 & 77.07 & 74.45 & 3.4\% & 0.393 & No \\
+\hline
+0.4 & 79.26 & 27.52 & 65.3\% & $9.2\times10^{-25}$ & Yes \\
+\hline
+0.6 & 72.52 & 23.93 & 67.0\% & $8.5\times10^{-31}$ & Yes \\
+\hline
+\end{tabular}
+\end{center}
+\end{table}
+
+At $\Phi^{*}=0.2$, intervention triggers only once the food security index has nearly collapsed,
+too late to prevent order amplification, and the difference from the no-intervention baseline is
+not statistically significant. At $\Phi^{*}=0.4$ and $0.6$, intervention activates earlier in the
+crisis timeline and substantially suppresses the farmer-tier Bullwhip Ratio, cutting it by
+roughly 65--67\%.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{bullwhip_by_threshold}
+  \caption{Farmer-tier Bullwhip Ratio over time, government on vs.\ off, faceted by FSI
+  activation threshold. Dotted vertical lines mark the fertilizer-ban, fuel-shortage, and
+  panic-buying shock onsets.}
+  \label{fig:threshold}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.75\textwidth]{heatmap_mean_bwr}
+  \caption{Mean farmer-tier Bullwhip Ratio, government intervention status $\times$ FSI activation
+  threshold.}
+  \label{fig:heatmap}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{boxplot_final_distribution}
+  \caption{Final-step Bullwhip Ratio distribution by scenario (50 runs per box), government on
+  vs.\ off, across all three FSI activation thresholds.}
+  \label{fig:boxplot}
+\end{figure}
+
+\section{Discussion and Conclusion}
+\label{sec:discussion}
+
+\subsection{Summary of Main Findings}
+
+This study modeled the Bullwhip Effect in Sri Lanka's North Central Province rice supply chain
+during the 2022 economic crisis, testing whether an adaptive, food-security-triggered government
+intervention reduces upstream order-variance amplification, and whether permitting returns
+increases it. Both hypotheses are supported. Government intervention reduces the farmer-tier
+Bullwhip Ratio by 61.3\% at calibrated default settings, though this benefit is conditional on
+early activation: intervention is statistically ineffective when triggered too late in the crisis
+timeline ($\Phi^{*}=0.2$). The return allowance $\rho$ increases the farmer-tier Bullwhip Ratio,
+consistent in direction with Chatfield and Pritchard \cite{ChatfieldPritchard2013}, though the
+effect is only clearly detectable at the higher return level tested. The shock-decomposition
+experiment (E1) found that none of the three individual crisis shocks produced a statistically
+significant effect in isolation, suggesting the shocks' contribution to amplification is better
+understood as arising from their interaction with the ordering policy and government-intervention
+mechanism (E2) than from their individual, isolated presence.
+
+\subsection{Interpretation and Implications}
+
+The mechanism behind the observed amplification is consistent with standard bullwhip theory
+\cite{LeePadmanabhanWhang1997}: each tier's Order-Up-To policy reacts to smoothed local demand
+rather than true consumer demand, so successive tiers over- and under-correct, with lead time and
+the return allowance $\rho$ compounding the effect moving upstream. The Government agent
+interrupts this compounding process by capping order amplification once the food security index
+signals crisis conditions---functioning, in effect, as a coarse form of the demand-information
+sharing mechanism studied by Moyaux, Chaib-draa, and D'Amours \cite{MoyauxChaibdraaDamours2007}.
+The threshold-dependence result indicates that this substitute signal only helps if it fires while
+farmer capacity and inventory are still recoverable; once the index has nearly collapsed, the cap
+can no longer prevent the amplification that has already propagated through the chain.
+
+The E1 finding that no individual shock reaches significance in isolation is itself informative:
+it suggests that in this model, crisis-driven bullwhip amplification is not simply the sum of
+independent shock contributions, but emerges from how the ordering policy, lead-time structure,
+and (where active) government response interact with the shocks in combination---a point directly
+relevant to RQ1 and worth further decomposition in future work (\cref{sec:future}).
+
+\subsection{Comparison to Previous Work}
+
+Chatfield and Pritchard \cite{ChatfieldPritchard2013} find that returns increase bullwhip
+amplification most strongly at the most upstream echelon; the present model's farmer tier
+(analogous to their Factory echelon) shows the same qualitative direction, though the magnitude of
+increase detected here is more modest and only reaches significance at $\rho=0.2$ rather than
+scaling smoothly across all tested levels. Dominguez, Cannella, and Framinan
+\cite{DominguezCannellaFraminan2015} find that supply chain structural factors beyond echelon
+count materially affect bullwhip severity under demand shocks; the present four-tier, tiered-
+lead-time structure produces amplification magnitudes broadly consistent with their volatile-
+demand scenarios, though a direct structural comparison was outside this paper's scope. Qu and
+Raff \cite{QuRaff2017} find that centralized inventory control does not uniformly outperform
+decentralized control; the present paper's threshold-dependence finding is a specific instance of
+this general result, showing that a nominally centralized intervention can fail entirely under
+poor parameterization.
+
+\subsection{Limitations}
+
+Several limitations should be noted. First, the implemented government agent uses a single
+adaptive policy lever (an order-amplification cap), rather than the three discrete levers (price
+controls, import relief, rationing) originally proposed. Second, two of the three shock
+multipliers (fuel shortage, consumer panic rate) are calibrated to estimated rather than directly
+measured values, in the absence of comparably precise administrative data to the DCS paddy yield
+series used for the fertilizer shock. Third, the return allowance effect (\cref{fig:rho}) was only
+clearly significant at $\rho=0.2$; the step from $\rho=0$ to $\rho=0.1$ did not reach significance,
+so the relationship should not be read as strictly linear across the tested range. Fourth, the E3
+one-factor-at-a-time sensitivity sweep for $\rho$ specifically was executed prior to a
+subsequent correction to the returns mechanism (\cref{eq:returns}) and its results are therefore
+not reported here; the $\alpha$, panic-rate, and $\Phi^{*}$ sweeps in E3 do not depend on the
+returns mechanism and remain valid, but a repeated $\rho$-sensitivity sweep under the corrected
+mechanism is identified as outstanding work. Fifth, a supplementary AnyLogic Personal Learning
+Edition model was also built for cross-checking purposes; it cannot replicate NetLogo's full
+50-run BehaviorSpace design due to platform replication limits. All statistical claims and all
+figures in this report are drawn exclusively from NetLogo BehaviorSpace output, analyzed and
+visualized in Python (\cref{sec:analysis}).
+
+\subsection{Future Directions}
+\label{sec:future}
+
+Three extensions follow naturally from these limitations. First, re-running the E3 $\rho$-
+sensitivity sweep under the corrected returns mechanism would complete the parameter-robustness
+picture for RQ3. Second, replacing the single order-amplification cap with the originally proposed
+three-lever policy space (price controls, import relief, rationing) would allow testing whether
+more targeted interventions outperform the current coarse cap. Third, given that no individual
+shock in E1 reached significance in isolation, a follow-up factorial analysis explicitly testing
+two- and three-way shock interaction terms (rather than main effects alone) would help clarify
+whether amplification in this model is driven by shock interactions, by interaction with the
+ordering policy structure, or by the government-intervention mechanism's response to combined
+shocks.
+
+\subsection{Conclusion}
+
+This paper models the Bullwhip Effect in Sri Lanka's North Central Province rice supply chain
+during the 2022 economic crisis using an agent-based simulation grounded in the Order-Up-To and
+returns framework of Chatfield and Pritchard \cite{ChatfieldPritchard2013}. An adaptive government
+agent, activating an order-amplification cap once a food security index crosses a threshold,
+reduces farmer-tier order-variance amplification by roughly 61--67\% when activated early enough
+in the crisis timeline, but provides no statistically detectable benefit when activated too late.
+Permitting returns increases farmer-tier amplification, consistent in direction with the cited
+literature. These findings suggest that the design of food-security policy triggers---specifically,
+their activation timing relative to a compounding supply shock---is at least as consequential as
+the decision to intervene at all.
+
+\section{Individual Contribution Statement}
+\label{sec:contributions}
+
+\begin{itemize}[leftmargin=.3in]
+
+\item[] \textbf{U.K.D.I. Dilshan, 16939}
+\begin{itemize}
+\item \textit{Submodel implemented or analyzed:} Base ordering model, following Chatfield and
+Pritchard \cite{ChatfieldPritchard2013}. Implemented the Order-Up-To replenishment policy
+(\cref{eq:forecast,eq:orderupto,eq:orderqty}), the tiered lead time pipelines, and the return
+allowance shock mechanism (\cref{eq:returns}) in NetLogo, including the diagnosis and correction of
+two implementation bugs (a consumer-demand overwrite affecting the panic-rate shock, and an
+inventory-buffering returns mechanism producing the wrong effect direction relative to
+\cite{ChatfieldPritchard2013}).
+\item \textit{Analysis or visualization contribution:} Led NetLogo BehaviorSpace configuration and
+execution for experiments E0--E3 and the FSI-threshold check.
+\item \textit{Writing contribution:} Wrote \cref{sec:intro,sec:model,sec:experiments}.
+\item \textit{Understanding of project:} This project models how the 2022 economic crisis in Sri
+Lanka disrupted the rice supply chain in the North Central Province, using an agent-based
+simulation of five interacting agents: Consumer, Retailer, Wholesaler, Farmer, and an adaptive
+Government agent. My contribution was the ordering logic that every non-consumer agent uses each
+week: each tier forecasts demand, compares it against its target inventory level, and places an
+order to close the gap, with a delay of several weeks before that order arrives (the lead time).
+I also implemented the mechanism by which returns of unsold or excess stock introduce extra,
+unpredictable swings into that ordering decision, following Chatfield and Pritchard's finding that
+allowing returns increases the bullwhip effect rather than dampening it. During development I
+found and corrected two bugs: one where the panic-buying shock was silently discarded before it
+could affect demand, and one where returns were implemented in a way that made the model's results
+run backwards relative to the cited paper. Fixing both required not just changing code but
+re-verifying, with real BehaviorSpace output, that the fix produced the expected direction of
+effect before trusting any downstream result. This project taught me that an agent-based model is
+only as trustworthy as its weakest mechanism, and that a plausible-looking result can still be
+wrong for structural reasons that only show up when you check it against the theory it's supposed
+to reproduce.
+\end{itemize}
+
+\item[] \textbf{U.A.D.L.T. Subasinghe, 16652}
+\begin{itemize}
+\item \textit{Submodel implemented or analyzed:} Reviewed Dominguez, Cannella, and Framinan
+\cite{DominguezCannellaFraminan2015} on supply chain structural factors; contributed to the design
+and justification of the model's four-tier chain structure.
+\item \textit{Analysis or visualization contribution:} Cross-checked the model's four-tier,
+tiered-lead-time chain structure against the structural factors identified in
+\cite{DominguezCannellaFraminan2015} (echelon count, lead-time distribution across tiers) to
+confirm the model's design choices were consistent with that paper's findings on which structural
+factors most affect bullwhip severity under volatile demand.
+\item \textit{Writing contribution:} Contributed to \cref{sec:related}.
+\item \textit{Understanding of project:} My paper, Dominguez, Cannella, and Framinan (2015),
+studies how a supply chain's structure---not just how many tiers it has, but how those tiers are
+connected and how lead times are distributed among them---affects how badly a demand shock gets
+amplified as it travels upstream. This directly shaped a design decision in our own model: we
+built a fixed four-tier chain (Consumer, Retailer, Wholesaler, Farmer) with different lead times
+at each tier (2, 3, and 4 weeks respectively) rather than a simplified chain with uniform lead
+times, because the literature shows that structural detail like this changes the outcome under
+crisis conditions, not just under normal demand. My role was to make sure this part of our model's
+design was defensible against the literature, and to help explain, in the Related Work section,
+why a stylized linear chain would not have been an adequate choice for a project specifically
+about a crisis scenario.
+\end{itemize}
+
+\item[] \textbf{D.A.A.K. Dewasingha, 16935}
+\begin{itemize}
+\item \textit{Submodel implemented or analyzed:} FSI-threshold sensitivity experiment design and
+execution.
+\item \textit{Analysis or visualization contribution:} Conducted the Python-based statistical
+analysis (\texttt{pandas}, \texttt{scipy}, \texttt{matplotlib}) of BehaviorSpace CSV exports,
+including Welch's $t$-test significance testing, and produced the visualizations in
+\cref{fig:e1,fig:rho,fig:threshold,fig:heatmap,fig:boxplot}.
+\item \textit{Writing contribution:} Wrote \cref{sec:analysis} and the Results subsections in
+\cref{sec:results}.
+\item \textit{Understanding of project:} My contribution focused on turning the raw NetLogo
+BehaviorSpace output into the statistical evidence the report relies on. Each experiment produces
+one CSV row per simulation run per week, so the first step was always cleaning that data (removing
+BehaviorSpace's header rows, fixing column types) before any analysis could happen. I designed the
+supplementary FSI-threshold experiment specifically to test whether the government agent's
+activation threshold, not just whether the government switch was on or off, determined whether
+intervention actually helped, and used Welch's $t$-test rather than a standard $t$-test because the
+government-on and government-off groups have very different variances, which would otherwise bias
+the significance test. The most important finding I helped establish was that government
+intervention only works if it activates early enough in the crisis timeline: at a threshold of
+0.2, the food security index has already nearly collapsed by the time the government acts, and the
+result is statistically indistinguishable from doing nothing at all. That finding shaped how the
+whole team framed the project's conclusion, from "government intervention helps" to the more
+precise and more useful claim that intervention timing is what actually matters.
+\end{itemize}
+
+\item[] \textbf{T.P.N. Fernando, 16941}
+\begin{itemize}
+\item \textit{Submodel implemented or analyzed:} Reviewed Qu and Raff \cite{QuRaff2017} on
+centralized versus decentralized inventory control.
+\item \textit{Analysis or visualization contribution:} Compared the model's government-intervention
+mechanism against the centralized-control framework in \cite{QuRaff2017}, helping interpret why
+the FSI-threshold experiment's finding (intervention effectiveness depends on activation timing,
+not merely on the presence of a centralized policy) is consistent with that paper's broader result
+that centralization does not uniformly outperform decentralized control.
+\item \textit{Writing contribution:} Contributed to the Comparison to Previous Work and
+policy-implications discussion in \cref{sec:discussion}.
+\item \textit{Understanding of project:} My paper, Qu and Raff (2017), compares centralized and
+decentralized inventory control across a supply chain and finds that centralizing control does not
+automatically reduce the bullwhip effect; it depends on how and when that central control is
+exercised. This connects directly to our project's government agent, which is a form of
+centralized intervention: it observes a food-security signal across the whole chain and caps
+orders once conditions look bad enough. Our own results echo Qu and Raff's point almost exactly:
+the government agent only reduces the bullwhip effect when it activates early, at a threshold of
+0.4 or 0.6; at a more conservative threshold of 0.2, it provides no statistically measurable
+benefit at all, even though it is still, nominally, a centralized intervention. My contribution was
+connecting this literature to that specific result, so the report doesn't just report "government
+intervention works" as a flat finding, but explains why a poorly timed centralized policy can fail
+even when a well-timed one succeeds, which is the more accurate and more useful conclusion.
+\end{itemize}
+
+\item[] \textbf{H.W.S.N. Hathurusinghe, 16942}
+\begin{itemize}
+\item \textit{Submodel implemented or analyzed:} Reviewed Moyaux, Chaib-draa, and D'Amours
+\cite{MoyauxChaibdraaDamours2007} on information sharing as a coordination mechanism; contributed
+to the conceptual framing of the Government agent.
+\item \textit{Analysis or visualization contribution:} Evaluated the Government agent's food
+security index mechanism as an implementation of the information-sharing coordination principle
+described in \cite{MoyauxChaibdraaDamours2007}, comparing it against that paper's finding that
+sharing true demand information upstream dampens bullwhip amplification.
+\item \textit{Writing contribution:} Contributed to \cref{sec:related} and the Government
+Intervention subsection of \cref{sec:model}.
+\item \textit{Understanding of project:} My paper, Moyaux, Chaib-draa, and D'Amours (2007), studies
+how sharing information about true consumer demand, rather than letting each tier only see the
+orders placed by its immediate neighbor, can reduce the bullwhip effect. Individual tiers in a
+supply chain normally only see a distorted version of demand, filtered through every tier below
+them; sharing the real signal upstream removes some of that distortion. This paper directly shaped
+how we designed the Government agent in our model. Rather than letting the government see raw
+orders like every other tier does, we gave it its own food security index, computed from the
+farmer's actual production capacity and inventory, so it has a clearer, more direct signal of the
+crisis than any single supply chain tier would have on its own. My contribution was making sure
+this design choice was grounded in the coordination-mechanism literature rather than just being an
+arbitrary rule, and helping write up why an information-based intervention like this is a
+reasonable stand-in for the more detailed three-lever policy (price controls, import relief,
+rationing) that was originally proposed but not fully implemented.
+\end{itemize}
+
+\end{itemize}
+
+All members reviewed and approved the final report and jointly prepared the GitHub repository,
+\href{https://github.com/sara316129/srilanka-rice-supply-chain-bullwhip}{\textit{Bullwhip Effect
+in Sri Lanka's Rice Supply Chain}}, containing the model, experiment CSV outputs, analysis
+scripts, and this document.
+
+\section{Data and Code Availability}
+\label{sec:data-availability}
+
+The NetLogo model, BehaviorSpace experiment definitions, exported CSV data, and Python analysis
+scripts are available in the project repository,
+\href{https://github.com/sara316129/srilanka-rice-supply-chain-bullwhip}{\textit{Bullwhip Effect
+in Sri Lanka's Rice Supply Chain}} on GitHub. See the repository README for reproduction
+instructions.
+
+\section*{Acknowledgments}
+We thank Dr.\ S.\ C.\ Surasinghe for supervision and guidance throughout this project.
+
+\bibliographystyle{siamplain}
+\bibliography{references}
+
+\end{document}
