@@ -30,9 +30,10 @@ The base ordering model draws on:
 ## 3. Repository Structure
 
 ```
-├── model.nlogox                      # NetLogo model (final, corrected version — see §8)
-├── main.tex                          # Final report (LaTeX, SIURO template)
+├── model.nlogox                           # NetLogo model — final, corrected version (see Section 8)
+├── main.tex                               # Final report (LaTeX, SIURO template)
 ├── references.bib
+├── data_analysis.ipynb                    # Statistics + all 5 figures (Jupyter notebook)
 ├── figures/
 │   ├── e1_shock_decomposition.png
 │   ├── rho_effect.png
@@ -40,17 +41,22 @@ The base ordering model draws on:
 │   ├── boxplot_final_distribution.png
 │   └── bullwhip_by_threshold.png
 ├── experiments/
-│   ├── E0-baseline-validation-table.csv
-│   ├── E1-shock-decomposition-table.csv
-│   ├── E2-intervention-returns-panic-table.csv       # post-fix (see §8)
-│   ├── FSI-threshold-check-table.csv                 # post-fix (see §8)
-│   ├── E3-sensitivity-alpha-table.csv
-│   ├── E3-sensitivity-panic-rate-table.csv
-│   └── E3-sensitivity-fsi-threshold-table.csv
-│       # Note: an E3-sensitivity-rho sweep exists but predates the returns-mechanism
-│       # correction (§8) and is NOT included; a corrected re-run is listed as future work.
-├── analysis/
-│   └── data_analysis.py              # pandas / scipy / matplotlib analysis scripts
+│   ├── model_E0-baseline-validation-table.csv
+│   ├── model_E1-shock-decomposition-table.csv
+│   ├── model_E2-intervention-returns-panic-table.csv     # post-fix, see Section 8
+│   ├── model_FSI-threshold-check-table.csv               # post-fix, see Section 8
+│   ├── model_government-comparison-table.csv             # supplementary replication (see Section 5)
+│   ├── model_E3-sensitivity-alpha-spreadsheet.csv
+│   ├── model_E3-sensitivity-panic-rate-spreadsheet.csv
+│   └── model_E3-sensitivity-fsi-threshold-spreadsheet.csv
+│       # Note: an E3-sensitivity-rho spreadsheet exists but predates the returns-mechanism
+│       # correction (Section 8) and is NOT included; a corrected re-run is listed as future work.
+├── GovtOnOff_FSI_50runs-table.csv          # early-stage FSI sensitivity export (superseded
+│                                           # by experiments/model_FSI-threshold-check-table.csv;
+│                                           # kept for reference only, not cited in main.tex)
+├── PADDY_STATISTICS_2021-22MAHA.pdf        # DCS source document for fertilizer-shock calibration
+├── wfp_food_prices_lka.csv                 # WFP source data for shock-timing calibration
+├── 8_Chapter_04.pdf                        # course assignment brief / template reference
 └── README.md
 ```
 
@@ -60,7 +66,7 @@ The base ordering model draws on:
 |---|---|
 | Agents | Consumer, Retailer, Wholesaler, Farmer, Government (5 agent types) |
 | Ordering policy | Order-Up-To, with lead time pipelines of 2 / 3 / 4 weeks per tier |
-| Return allowance | ρ ∈ {0, 0.10, 0.20}; modeled as a stochastic shock on the order quantity (see §8) |
+| Return allowance | ρ ∈ {0, 0.10, 0.20}; modeled as a stochastic shock on the order quantity (see Section 8) |
 | Government policy | Adaptive order-amplification cap, activates when Food Security Index (Φ) < threshold Φ* |
 | Time horizon | 156 weekly steps (2021–2023, three calendar years) |
 | Crisis shocks | Fertilizer ban (week 17), fuel shortage (week 65), consumer panic buying (weeks 74–90) |
@@ -76,16 +82,15 @@ All experiments were run in NetLogo BehaviorSpace, table output mode (one CSV ro
 | **E2** — Intervention × returns × panic | 2×3×3 factorial (government × ρ × panic-rate) | 900 | RQ2, RQ3 |
 | **E3** — One-factor-at-a-time sensitivity | α, panic-rate, fsi-threshold each ±20% around baseline | 270 | RQ3 |
 | **FSI-threshold check** | 2×3 factorial (government × fsi-threshold ∈ {0.2, 0.4, 0.6}) | 300 | RQ2, RQ3 |
-
-**Note:** an E3 sweep for ρ was originally run but predates the returns-mechanism correction
-described in §8; it has been excluded rather than reported, and a corrected re-run is listed as
-future work in the final report.
+| **Government comparison** *(supplementary)* | 2-scenario (government on/off), fixed default parameters, final step only | 100 | RQ2 (replication) |
 
 ### Key results
 
 - **Government intervention** reduces the farmer-tier Bullwhip Ratio by **61.3%** at calibrated
   default settings (ρ=0.1, panic-rate=1.02): 74.53 (off) → 28.85 (on), Welch's t-test
-  p = 9.9×10⁻²⁹.
+  p = 9.9×10⁻²⁹. A simpler supplementary replication (government-comparison, 100 runs, fixed
+  defaults) independently confirms this in the same direction: 49.38 → 22.12, a 55.2% reduction,
+  p = 1.4×10⁻²⁹.
 - **Threshold sensitivity**: intervention is effective at fsi-threshold ≥ 0.4 (65–67% reduction,
   p < 10⁻²⁴) but statistically ineffective at fsi-threshold = 0.2 (p = 0.39) — activating too late
   in the crisis timeline provides no measurable benefit.
@@ -101,18 +106,18 @@ future work in the final report.
 
 - **NetLogo** — primary modeling and BehaviorSpace tool; source of all statistical results and
   figures reported.
-- **Python** (pandas, scipy, matplotlib) — post-processing of BehaviorSpace CSV exports,
-  significance testing (Welch's t-test), and all chart generation.
+- **Python** (pandas, scipy, matplotlib), via `data_analysis.ipynb` — post-processing of
+  BehaviorSpace CSV exports, significance testing (Welch's t-test), and all chart generation.
 - An earlier supplementary AnyLogic PLE model was also built for cross-checking purposes only; it
   is not included in this repository and no statistical claim in the final report is drawn from it.
 
 ## 7. Data Sources
 
-| Source | Used for |
-|---|---|
-| Central Bank of Sri Lanka, Annual Report 2022 | Crisis shock timing calibration |
-| Department of Census and Statistics (DCS), Paddy Statistics 2021/22 Maha Season | Farmer-tier capacity shock calibration (`fertilizer-shock` = 0.627) |
-| World Food Programme (WFP), weekly rice price data | Qualitative validation of shock timing; FSI threshold convention |
+| Source | File | Used for |
+|---|---|---|
+| Central Bank of Sri Lanka, Annual Report 2022 | — | Crisis shock timing calibration |
+| Department of Census and Statistics (DCS), Paddy Statistics 2021/22 Maha Season | `PADDY_STATISTICS_2021-22MAHA.pdf` | Farmer-tier capacity shock calibration (`fertilizer-shock` = 0.627) |
+| World Food Programme (WFP), weekly rice price data | `wfp_food_prices_lka.csv` | Qualitative validation of shock timing; FSI threshold convention |
 
 The `fertilizer-shock` multiplier is **0.627**, derived from the DCS-reported Maha season yield
 decline of 4,492 → 2,819 kg/ha (≈37%). This value is used consistently across the model default,
@@ -135,31 +140,34 @@ here for transparency and reproducibility.
    (`order_qty = base_order + rho * base_order * N(0,1)`), which at ρ=0 is identical to the
    no-returns case and, as ρ increases, injects unpredictable order-quantity volatility rather than
    a predictable inventory buffer. This is reported in the final report's Model Implementation
-   section (Eq. for returns) and confirmed to reproduce the correct effect direction (§5).
+   section and confirmed to reproduce the correct effect direction (Section 5).
 
-All experiment CSVs in `experiments/` reflect the model **after** both corrections, with the
-exception noted in §5 regarding the E3 ρ-sweep.
+All experiment CSVs in `experiments/` reflect the model **after** both corrections, with two
+exceptions: the E3 ρ-sweep (excluded, see Section 5) and `model_government-comparison-table.csv`, which
+was generated shortly before the second (returns) fix; since that experiment does not vary ρ, its
+government on/off comparison remains a reasonable supplementary check, but is not used as the
+primary evidence for any claim in the final report.
 
 ## 9. How to Reproduce
 
 1. Open `model.nlogox` in NetLogo.
 2. Tools → BehaviorSpace → select an experiment (E0, E1, E2, E3, or FSI-threshold-check) → Run.
 3. In the run dialog, enable **Table output** (not Spreadsheet) and export to `experiments/`.
-4. Run `analysis/data_analysis.py` to regenerate summary statistics and figures.
+4. Open `data_analysis.ipynb` in Jupyter and run all cells to regenerate summary statistics and
+   figures.
 
 ## 10. Group Members & Contributions
 
-| Member | Responsibility |
-|---|---|
-| Member 1 | Chatfield & Pritchard (2013) — base ordering model, return allowance mechanism, NetLogo implementation and bug diagnosis/correction (§8) |
-| Member 2 | Dominguez, Cannella & Framinan (2015) — supply chain structure literature |
-| Member 3 | Python data analysis, statistical testing, visualization |
-| Member 4 | Qu & Raff (2017) — centralized vs. decentralized inventory control literature |
-| Member 5 | Moyaux, Chaib-draa & D'Amours (2007) — information sharing literature |
+| Member | Index No. | Responsibility |
+|---|---|---|
+| U.K.D.I. Dilshan | 16939 | Chatfield & Pritchard (2013) — base ordering model, return allowance mechanism, NetLogo implementation and bug diagnosis/correction (Section 8) |
+| U.A.D.L.T. Subasinghe | 16652 | Dominguez, Cannella & Framinan (2015) — supply chain structure literature |
+| D.A.A.K. Dewasingha | 16935 | Python data analysis, statistical testing, visualization |
+| T.P.N. Fernando | 16941 | Qu & Raff (2017) — centralized vs. decentralized inventory control literature |
+| H.W.S.N. Hathurusinghe | 16942 | Moyaux, Chaib-draa & D'Amours (2007) — information sharing literature |
 
-*(Full individual contribution statements, including each member's student index number and
-personal understanding-of-project summary, are in the final report, Section "Individual
-Contribution Statement".)*
+*(Full individual contribution statements, including each member's personal understanding-of-project
+summary, are in the final report, Section "Individual Contribution Statement".)*
 
 ## 11. References
 
